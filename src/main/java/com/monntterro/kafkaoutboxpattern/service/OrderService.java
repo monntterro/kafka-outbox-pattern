@@ -6,6 +6,7 @@ import com.monntterro.kafkaoutboxpattern.entity.EventStatus;
 import com.monntterro.kafkaoutboxpattern.entity.Order;
 import com.monntterro.kafkaoutboxpattern.entity.OutboxEvent;
 import com.monntterro.kafkaoutboxpattern.repository.OrderRepository;
+import com.monntterro.kafkaoutboxpattern.utils.Utils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -43,9 +44,8 @@ public class OrderService {
             throw new RuntimeException(e);
         }
 
-        // Simulate random failure
-        if (canFail && Math.random() < 0.4) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Random failure occurred");
+        if (canFail) {
+            Utils.simulateFailure(0.5f);
         }
 
         outboxEvent.setStatus(EventStatus.CREATED);
