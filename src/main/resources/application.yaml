@@ -2,13 +2,28 @@ server:
   port: 8081
 
 spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/db
+    username: admin
+    password: admin
   kafka:
     producer:
       acks: all
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
       bootstrap-servers: localhost:9092
+  jpa:
+    hibernate:
+      ddl-auto: create
 
 outbox:
+  max-retries: 1
   kafka:
     topic: outbox_event
+  scheduler:
+    process:
+      delay: 1000
+      limit: 20
+    retries:
+      delay: 1000
+      limit: 20

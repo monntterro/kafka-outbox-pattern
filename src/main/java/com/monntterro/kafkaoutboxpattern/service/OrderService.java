@@ -33,7 +33,7 @@ public class OrderService {
     }
 
     @Transactional
-    public Order create(Order o) {
+    public Order create(Order o, boolean canFail) {
         Order order = orderRepository.save(o);
 
         OutboxEvent outboxEvent = new OutboxEvent();
@@ -44,19 +44,13 @@ public class OrderService {
         }
 
         // Simulate random failure
-        if (Math.random() < 0.4) throw new RuntimeException("Injected random fault!");
+        if (canFail && Math.random() < 0.4) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Random failure occurred");
+        }
 
         outboxEvent.setStatus(EventStatus.CREATED);
         outboxEventService.save(outboxEvent);
 
-        return order;
-    }
-
-    public Order delete(Long id) {
-        Order order = orderRepository.findById(id).orElse(null);
-        if (order != null) {
-            orderRepository.delete(order);
-        }
         return order;
     }
 }

@@ -1,12 +1,10 @@
 package com.monntterro.kafkaoutboxpattern.controller;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.monntterro.kafkaoutboxpattern.entity.Order;
 import com.monntterro.kafkaoutboxpattern.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -27,12 +25,16 @@ public class OrderController {
     }
 
     @PostMapping
-    public Order create(@RequestBody Order order) {
-        return orderService.create(order);
+    public Order create(@RequestParam("canFail") boolean canFail, @RequestBody Order order) {
+        return orderService.create(order, canFail);
     }
 
-    @DeleteMapping("/{id}")
-    public Order delete(@PathVariable Long id) {
-        return orderService.delete(id);
+    @PostMapping("/many")
+    public Order createManyRandom(@RequestParam("canFail") boolean canFail, @RequestParam("count") Long count,
+                                  @RequestBody Order order) {
+        while (count-- > 1) {
+            orderService.create(order, canFail);
+        }
+        return orderService.create(order, canFail);
     }
 }

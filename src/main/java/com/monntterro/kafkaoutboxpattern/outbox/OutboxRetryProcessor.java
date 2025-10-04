@@ -13,31 +13,41 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class OutboxProcessor {
+public class OutboxRetryProcessor {
     private final OutboxEventService outboxEventService;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
     @Value("${outbox.kafka.topic}")
     private String outboxTopic;
 
-    @Value("${outbox.scheduler.process.limit}")
+    @Value("${outbox.scheduler.retries.limit}")
     private Integer limit;
 
-    @Scheduled(fixedDelayString = "${outbox.scheduler.process.delay}")
-    public void processOutboxEvents() {
-        outboxEventService.findByStatusOrderByCreatedAt(EventStatus.CREATED, limit).forEach(outbox -> {
+    @Value("${outbox.max-retries}")
+    private Integer maxRetries;
+
+    @Scheduled(fixedDelayString = "${outbox.scheduler.retries.delay}")
+    public void retryProcessOutboxEvents() {
+        outboxEventService.findByStatusOrderByCreatedAt(EventStatus.FAILED, limit).forEach(outbox -> {
+            outbox.increaseRetries();
+
             EventStatus status = EventStatus.SENT;
             try {
                 Utils.simulateFailure(0.5f);
                 kafkaTemplate.send(outboxTopic, outbox.getPayload()).get();
             } catch (Exception e) {
-                log.error("Failed to send outbox event with id {}", outbox.getId());
+                log.warn("Failed to resend outbox event with id {}", outbox.getId());
                 status = EventStatus.FAILED;
+            }
+
+            if (status == EventStatus.FAILED && outbox.getRetries() >= maxRetries) {
+                log.error("Outbox event with id {} has reached max retries. Marking as PERMANENTLY_FAILED.", outbox.getId());
+                status = EventStatus.PERMANENTLY_FAILED;
             }
 
             outbox.setStatus(status);
             outboxEventService.save(outbox);
-            log.info("Processed outbox event with id {}", outbox.getId());
+            log.info("Retried outbox event with id {}", outbox.getId());
         });
     }
 }
